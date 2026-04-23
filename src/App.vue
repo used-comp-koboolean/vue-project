@@ -10,7 +10,9 @@ const html = ref('');
    에디터 HTML 확인
 ========================= */
 function clickHandler() {
-  html.value = editorRef.value?.getHTML?.() || '';
+  const value = editorRef.value?.getHTML?.() || '';
+  console.log(value);
+  html.value = value;
 }
 </script>
 
