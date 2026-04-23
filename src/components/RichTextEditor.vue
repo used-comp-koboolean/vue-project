@@ -1,8 +1,47 @@
 <script setup>
-import { ref, onBeforeUnmount } from 'vue';
-import { QuillEditor as BaseQuillEditor } from '@vueup/vue-quill';
+import { ref, onMounted, onBeforeUnmount } from 'vue';
+import { QuillEditor as BaseQuillEditor, Quill } from '@vueup/vue-quill';
 import '@vueup/vue-quill/dist/vue-quill.snow.css';
+import 'quill-resize-module/dist/resize.css';
 import { apiClient } from '@/plugins/axios.ts';
+
+const FONT_WHITELIST = ['nanum-gothic', 'nanum-myeongjo'];
+const SIZE_WHITELIST = Array.from({ length: 21 }, (_, index) => `${index + 10}px`);
+const QuillFontClass = Quill.import('attributors/class/font');
+QuillFontClass.whitelist = FONT_WHITELIST;
+Quill.register(QuillFontClass, true);
+
+const QuillSizeStyle = Quill.import('attributors/style/size');
+QuillSizeStyle.whitelist = SIZE_WHITELIST;
+Quill.register(QuillSizeStyle, true);
+
+const QuillLink = Quill.import('formats/link');
+
+class ExternalLink extends QuillLink {
+  static create(value) {
+    const node = super.create(value);
+    node.setAttribute('target', '_blank');
+    node.setAttribute('rel', 'noopener noreferrer');
+    return node;
+  }
+}
+
+Quill.register(ExternalLink, true);
+
+const URL_PATTERN = /((?:https?:\/\/|www\.)[^\s<>()]+(?:\([^\s<>()]*\)[^\s<>()]*)*)/gi;
+
+const isEditorVisible = ref(false);
+
+async function initResizeModule() {
+  if (typeof window === 'undefined') return;
+
+  window.Quill = Quill;
+
+  if (!window.__quillResizeLoaded) {
+    await import('quill-resize-module');
+    window.__quillResizeLoaded = true;
+  }
+}
 
 const props = defineProps({
   content: {
@@ -17,6 +56,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:content']);
 const editRef = ref(null);
+let pasteHandler = null;
 
 /* =========================
    공통 이미지 삽입 처리
@@ -51,11 +91,95 @@ function imageHandler() {
   };
 }
 
+function escapeHtml(value) {
+  return (value || '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function textContainsUrl(value) {
+  return /(?:https?:\/\/|www\.)[^\s<>()]+/i.test(value || '');
+}
+
+function splitTrailingPunctuation(value) {
+  let core = value || '';
+  let tail = '';
+
+  while (/[),.;!?]$/.test(core)) {
+    tail = core.slice(-1) + tail;
+    core = core.slice(0, -1);
+  }
+
+  return { core, tail };
+}
+
+function normalizeUrl(url) {
+  if (!url) return '';
+  return /^https?:\/\//i.test(url) ? url : `https://${url}`;
+}
+
+function linkifyInlineText(text) {
+  return escapeHtml(text).replace(URL_PATTERN, raw => {
+    const { core, tail } = splitTrailingPunctuation(raw);
+    if (!core) return raw;
+
+    const href = normalizeUrl(core);
+    return `<a href="${href}" target="_blank" rel="noopener noreferrer">${escapeHtml(core)}</a>${escapeHtml(tail)}`;
+  });
+}
+
+function linkifyPlainTextToHtml(text) {
+  return linkifyInlineText(text || '').replace(/\r?\n/g, '<br>');
+}
+
+function linkifyHtmlContent(html) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  if (!doc?.body) return html;
+
+  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+  const textNodes = [];
+  while (walker.nextNode()) {
+    textNodes.push(walker.currentNode);
+  }
+
+  textNodes.forEach(node => {
+    const value = node.nodeValue || '';
+    if (!textContainsUrl(value)) return;
+
+    const parent = node.parentElement;
+    if (!parent || parent.closest('a,script,style')) return;
+
+    const container = doc.createElement('span');
+    container.innerHTML = linkifyInlineText(value);
+
+    const fragment = doc.createDocumentFragment();
+    while (container.firstChild) {
+      fragment.appendChild(container.firstChild);
+    }
+
+    node.parentNode?.replaceChild(fragment, node);
+  });
+
+  doc.body.querySelectorAll('a[href]').forEach(anchor => {
+    anchor.setAttribute('target', '_blank');
+    anchor.setAttribute('rel', 'noopener noreferrer');
+  });
+
+  return doc.body.innerHTML;
+}
+
 /* =========================
-   붙여넣기 이미지 처리
+   붙여넣기 처리
 ========================= */
 async function handlePaste(e) {
-  const items = e.clipboardData.items;
+  const clipboardData = e.clipboardData;
+  if (!clipboardData) return;
+
+  const items = clipboardData.items;
   const files = [];
 
   for (let i = 0; i < items.length; i++) {
@@ -68,10 +192,35 @@ async function handlePaste(e) {
     }
   }
 
-  if (files.length === 0) return;
+  const quill = editRef.value?.getQuill?.();
+  if (!quill) return;
 
-  e.preventDefault();
-  await insertUploadedImages(files);
+  if (files.length > 0) {
+    e.preventDefault();
+    await insertUploadedImages(files);
+    return;
+  }
+
+  const html = clipboardData.getData('text/html') || '';
+  const text = clipboardData.getData('text/plain') || '';
+  const range = quill.getSelection(true);
+
+  if (html && textContainsUrl(html)) {
+    const linkedHtml = linkifyHtmlContent(html);
+    e.preventDefault();
+    quill.deleteText(range.index, range.length, 'user');
+    quill.clipboard.dangerouslyPasteHTML(range.index, linkedHtml, 'user');
+    quill.setSelection(range.index + (text || '').length, 0, 'silent');
+    return;
+  }
+
+  if (!html && textContainsUrl(text)) {
+    const linkedTextHtml = linkifyPlainTextToHtml(text);
+    e.preventDefault();
+    quill.deleteText(range.index, range.length, 'user');
+    quill.clipboard.dangerouslyPasteHTML(range.index, linkedTextHtml, 'user');
+    quill.setSelection(range.index + text.length, 0, 'silent');
+  }
 }
 
 /* =========================
@@ -98,8 +247,11 @@ const editorOptions = {
   modules: {
     toolbar: {
       container: [
+        [{ font: FONT_WHITELIST }],
+        [{ size: SIZE_WHITELIST }],
         ['bold', 'italic', 'underline'],
         [{ header: [1, 2, 3, false] }],
+        [{ align: [] }],
         [{ list: 'ordered' }, { list: 'bullet' }],
         ['link'],
         ['image'],
@@ -125,6 +277,9 @@ const editorOptions = {
         ],
       ],
     },
+    resize: {
+      modules: ['Resize', 'DisplaySize', 'Toolbar'],
+    },
   },
 };
 
@@ -133,12 +288,26 @@ const editorOptions = {
 ========================= */
 function onEditorReady() {
   const quill = editRef.value.getQuill();
-  quill.root.addEventListener('paste', handlePaste);
+  pasteHandler = e => {
+    handlePaste(e);
+  };
+
+  quill.root.addEventListener('paste', pasteHandler);
 }
 
 onBeforeUnmount(() => {
   const quill = editRef.value?.getQuill?.();
-  quill?.root?.removeEventListener('paste', handlePaste);
+  if (pasteHandler) {
+    quill?.root?.removeEventListener('paste', pasteHandler);
+  }
+});
+
+onMounted(async () => {
+  try {
+    await initResizeModule();
+  } finally {
+    isEditorVisible.value = true;
+  }
 });
 
 /* =========================
@@ -160,6 +329,7 @@ defineExpose({
 
 <template>
   <BaseQuillEditor
+    v-if="isEditorVisible"
     ref="editRef"
     class="quill"
     :style="props.editorStyle"
@@ -171,8 +341,48 @@ defineExpose({
   />
 </template>
 
-<style scoped>
+<style>
 .quill {
   width: 100%;
+}
+
+.quill .ql-editor img {
+  max-width: 100%;
+  height: auto;
+}
+
+.ql-editor .ql-font-nanum-gothic {
+  font-family: 'Nanum Gothic', sans-serif;
+}
+
+.ql-editor .ql-font-nanum-myeongjo {
+  font-family: 'Nanum Myeongjo', serif;
+}
+
+.ql-snow .ql-picker.ql-font .ql-picker-label::before,
+.ql-snow .ql-picker.ql-font .ql-picker-item::before {
+  content: '기본 글꼴';
+}
+
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value='nanum-gothic']::before,
+.ql-snow .ql-picker.ql-font .ql-picker-label[data-value='nanum-gothic']::before {
+  content: '나눔고딕';
+  font-family: 'Nanum Gothic', sans-serif;
+}
+
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value='nanum-myeongjo']::before,
+.ql-snow .ql-picker.ql-font .ql-picker-label[data-value='nanum-myeongjo']::before {
+  content: '나눔명조';
+  font-family: 'Nanum Myeongjo', serif;
+}
+
+.ql-snow .ql-picker.ql-size .ql-picker-label::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item::before {
+  content: '기본 크기';
+}
+
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value]::before {
+  content: attr(data-value);
 }
 </style>

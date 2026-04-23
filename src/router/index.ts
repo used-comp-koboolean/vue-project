@@ -1,8 +1,31 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router';
+import QuillEditorPage from '@/pages/QuillEditorPage.vue';
+import TiptapEditorPage from '@/pages/TiptapEditorPage.vue';
+import PdfViewerPage from '@/pages/PdfViewerPage.vue';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
-  routes: [],
-})
+  routes: [
+    {
+      path: '/',
+      redirect: '/quill',
+    },
+    {
+      path: '/quill',
+      name: 'quill-editor',
+      component: QuillEditorPage,
+    },
+    {
+      path: '/tiptap',
+      name: 'tiptap-editor',
+      component: TiptapEditorPage,
+    },
+    {
+      path: '/pdf-viewer',
+      name: 'pdf-viewer',
+      component: PdfViewerPage,
+    },
+  ],
+});
 
-export default router
+export default router;
