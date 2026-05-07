@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import QuillEditorPage from '@/pages/QuillEditorPage.vue';
 import TiptapEditorPage from '@/pages/TiptapEditorPage.vue';
 import PdfViewerPage from '@/pages/PdfViewerPage.vue';
+import FullCalender from '@/pages/FullCalender.vue';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -24,6 +25,11 @@ const router = createRouter({
       path: '/pdf-viewer',
       name: 'pdf-viewer',
       component: PdfViewerPage,
+    },
+    {
+      path: '/full-calender',
+      name: 'full-calender',
+      component: FullCalender,
     },
   ],
 });

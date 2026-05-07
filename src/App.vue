@@ -7,6 +7,10 @@
         <RouterLink to="/tiptap" class="nav-link">TipTap 화면</RouterLink>
         <RouterLink to="/pdf-viewer" class="nav-link">PDF 뷰어 화면</RouterLink>
       </nav>
+      <h2>Calender</h2>
+      <nav>
+        <RouterLink to="/full-calender" class="nav-link">Full Calender 화면</RouterLink>
+      </nav>
     </aside>
 
     <main class="content">
@@ -29,7 +33,7 @@
 }
 
 .sidebar h2 {
-  margin: 0 0 12px;
+  margin: 12px 0 12px;
   font-size: 15px;
   font-weight: 700;
 }
