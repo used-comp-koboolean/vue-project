@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import FullCalendar from '@fullcalendar/vue3'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import interactionPlugin from '@fullcalendar/interaction'
@@ -12,8 +12,14 @@ const props = defineProps({
   onDateClick: {
     type: Function,
     default: undefined
+  },
+  onMonthChange: {
+    type: Function,
+    default: undefined
   }
 })
+
+const calendarRef = ref(undefined)
 
 const compactDate = (value) => {
   if (!value) return value
@@ -57,6 +63,48 @@ const handleDateClick = (arg) => {
   }
 }
 
+const compactMonth = (date) => {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return undefined
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  return `${year}${month}`
+}
+
+const handleDatesSet = (arg) => {
+  if (typeof props.onMonthChange !== 'function') return
+  props.onMonthChange(compactMonth(arg?.view?.currentStart), arg)
+}
+
+const emitCurrentMonth = () => {
+  if (typeof props.onMonthChange !== 'function') return
+  const api = calendarRef.value?.getApi?.()
+  if (!api) return
+  props.onMonthChange(compactMonth(api.getDate()), api)
+}
+
+const clickPrev = () => {
+  const api = calendarRef.value?.getApi?.()
+  if (!api) return
+  api.prev()
+}
+
+const clickNext = () => {
+  const api = calendarRef.value?.getApi?.()
+  if (!api) return
+  api.next()
+}
+
+const clickToday = () => {
+  const api = calendarRef.value?.getApi?.()
+  if (!api) return
+  const before = compactMonth(api.getDate())
+  api.today()
+  const after = compactMonth(api.getDate())
+  if (before === after) {
+    emitCurrentMonth()
+  }
+}
+
 const calendarOptions = computed(() => ({
   plugins: [ dayGridPlugin, interactionPlugin ],
   initialView: 'dayGridMonth',
@@ -65,20 +113,35 @@ const calendarOptions = computed(() => ({
   headerToolbar: {
     left: '',
     center: 'title',
-    right: 'prev today next'
+    right: 'prevCustom todayCustom nextCustom'
   },
   buttonText: {
-    prev: '<',
-    today: '오늘',
-    next: '>'
+    prevCustom: '<',
+    todayCustom: '오늘',
+    nextCustom: '>'
+  },
+  customButtons: {
+    prevCustom: {
+      text: '<',
+      click: clickPrev
+    },
+    todayCustom: {
+      text: '오늘',
+      click: clickToday
+    },
+    nextCustom: {
+      text: '>',
+      click: clickNext
+    }
   },
   dateClick: handleDateClick,
+  datesSet: handleDatesSet,
   events: normalizedEvents.value
 }))
 </script>
 
 <template>
-  <FullCalendar :options="calendarOptions" />
+  <FullCalendar ref="calendarRef" :options="calendarOptions" />
 </template>
 
 <style>
@@ -86,9 +149,9 @@ const calendarOptions = computed(() => ({
   pointer-events: none;
 }
 
-.fc .fc-prev-button,
-.fc .fc-next-button,
-.fc .fc-today-button {
+.fc .fc-prevCustom-button,
+.fc .fc-nextCustom-button,
+.fc .fc-todayCustom-button {
   appearance: none !important;
   -webkit-appearance: none !important;
   background-color: transparent !important;
@@ -166,9 +229,9 @@ const calendarOptions = computed(() => ({
     font-size: 20px;
   }
 
-  .fc .fc-prev-button,
-  .fc .fc-next-button,
-  .fc .fc-today-button {
+  .fc .fc-prevCustom-button,
+  .fc .fc-nextCustom-button,
+  .fc .fc-todayCustom-button {
     font-size: 14px !important;
     padding: 0 4px;
   }

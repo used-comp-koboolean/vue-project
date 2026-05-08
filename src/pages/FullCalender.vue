@@ -1,25 +1,24 @@
 <script setup>
-import { onMounted, ref } from 'vue'
-import BaseFullCalendar from '../components/BaseFullCalendar.vue'
-import { fetchDummyDbEvents } from '../stores/fullcalendar-dummy-events'
+import { storeToRefs } from 'pinia'
+import BaseFullCalendar from '@/components/BaseFullCalendar.vue'
+import { useFullCalendarStore } from '@/stores/fullcalendar'
 
-const dateEvents = ref([]);
+const fullCalendarStore = useFullCalendarStore()
+const { currentEvents } = storeToRefs(fullCalendarStore)
 
 const handleDateClick = (compactDate) => {
   console.log(compactDate);
 }
 
-const loadEvents = async () => {
-  try {
-    dateEvents.value = await fetchDummyDbEvents();
-  } catch {
-    dateEvents.value = [];
-  }
+const handleMonthChange = (month) => {
+  fullCalendarStore.loadEventsByMonth(month)
 }
-
-onMounted(loadEvents);
 </script>
 
 <template>
-  <BaseFullCalendar :date-events="dateEvents" :on-date-click="handleDateClick" />
+  <BaseFullCalendar
+    :date-events="currentEvents"
+    :on-date-click="handleDateClick"
+    :on-month-change="handleMonthChange"
+  />
 </template>
