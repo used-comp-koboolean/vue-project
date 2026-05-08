@@ -1,143 +1,143 @@
 <script setup>
-import { computed, ref } from 'vue'
-import FullCalendar from '@fullcalendar/vue3'
-import dayGridPlugin from '@fullcalendar/daygrid'
-import interactionPlugin from '@fullcalendar/interaction'
+import { computed, ref } from 'vue';
+import FullCalendar from '@fullcalendar/vue3';
+import dayGridPlugin from '@fullcalendar/daygrid';
+import interactionPlugin from '@fullcalendar/interaction';
 
 const props = defineProps({
   dateEvents: {
     type: Array,
-    default: () => []
+    default: () => [],
   },
   onDateClick: {
     type: Function,
-    default: undefined
+    default: undefined,
   },
   onMonthChange: {
     type: Function,
-    default: undefined
-  }
-})
+    default: undefined,
+  },
+});
 
-const calendarRef = ref(undefined)
+const calendarRef = ref(undefined);
 
 const compactDate = (value) => {
-  if (!value) return value
-  return String(value).replaceAll('-', '').slice(0, 8)
-}
+  if (!value) return value;
+  return String(value).replaceAll('-', '').slice(0, 8);
+};
 
 const dashedDate = (value) => {
-  const raw = compactDate(value)
-  if (!raw || raw.length !== 8) return value
-  return `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`
-}
+  const raw = compactDate(value);
+  if (!raw || raw.length !== 8) return value;
+  return `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
+};
 
 const toExclusiveEnd = (end) => {
-  if (!end) return end
-  const date = new Date(dashedDate(end))
-  if (Number.isNaN(date.getTime())) return end
-  date.setDate(date.getDate() + 1)
-  return date.toISOString().slice(0, 10)
-}
+  if (!end) return end;
+  const date = new Date(dashedDate(end));
+  if (Number.isNaN(date.getTime())) return end;
+  date.setDate(date.getDate() + 1);
+  return date.toISOString().slice(0, 10);
+};
 
 const normalizeEvent = (event) => {
   const normalized = {
     ...event,
     start: dashedDate(event?.start),
-    end: dashedDate(event?.end)
-  }
+    end: dashedDate(event?.end),
+  };
 
-  if (!normalized?.allDay || !normalized?.end) return normalized
+  if (!normalized?.allDay || !normalized?.end) return normalized;
 
   return {
     ...normalized,
-    end: toExclusiveEnd(normalized.end)
-  }
-}
+    end: toExclusiveEnd(normalized.end),
+  };
+};
 
-const normalizedEvents = computed(() => props.dateEvents.map(normalizeEvent))
+const normalizedEvents = computed(() => props.dateEvents.map(normalizeEvent));
 
 const handleDateClick = (arg) => {
   if (typeof props.onDateClick === 'function') {
-    props.onDateClick(compactDate(arg.dateStr), arg)
+    props.onDateClick(compactDate(arg.dateStr), arg);
   }
-}
+};
 
 const compactMonth = (date) => {
-  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return undefined
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  return `${year}${month}`
-}
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return undefined;
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  return `${year}${month}`;
+};
 
 const handleDatesSet = (arg) => {
-  if (typeof props.onMonthChange !== 'function') return
-  props.onMonthChange(compactMonth(arg?.view?.currentStart), arg)
-}
+  if (typeof props.onMonthChange !== 'function') return;
+  props.onMonthChange(compactMonth(arg?.view?.currentStart), arg);
+};
 
 const emitCurrentMonth = () => {
-  if (typeof props.onMonthChange !== 'function') return
-  const api = calendarRef.value?.getApi?.()
-  if (!api) return
-  props.onMonthChange(compactMonth(api.getDate()), api)
-}
+  if (typeof props.onMonthChange !== 'function') return;
+  const api = calendarRef.value?.getApi?.();
+  if (!api) return;
+  props.onMonthChange(compactMonth(api.getDate()), api);
+};
 
 const clickPrev = () => {
-  const api = calendarRef.value?.getApi?.()
-  if (!api) return
-  api.prev()
-}
+  const api = calendarRef.value?.getApi?.();
+  if (!api) return;
+  api.prev();
+};
 
 const clickNext = () => {
-  const api = calendarRef.value?.getApi?.()
-  if (!api) return
-  api.next()
-}
+  const api = calendarRef.value?.getApi?.();
+  if (!api) return;
+  api.next();
+};
 
 const clickToday = () => {
-  const api = calendarRef.value?.getApi?.()
-  if (!api) return
-  const before = compactMonth(api.getDate())
-  api.today()
-  const after = compactMonth(api.getDate())
+  const api = calendarRef.value?.getApi?.();
+  if (!api) return;
+  const before = compactMonth(api.getDate());
+  api.today();
+  const after = compactMonth(api.getDate());
   if (before === after) {
-    emitCurrentMonth()
+    emitCurrentMonth();
   }
-}
+};
 
 const calendarOptions = computed(() => ({
-  plugins: [ dayGridPlugin, interactionPlugin ],
+  plugins: [dayGridPlugin, interactionPlugin],
   initialView: 'dayGridMonth',
   locale: 'ko',
   dayCellContent: (arg) => String(arg.dayNumberText).replace(/[^0-9]/g, ''),
   headerToolbar: {
     left: '',
     center: 'title',
-    right: 'prevCustom todayCustom nextCustom'
+    right: 'prevCustom todayCustom nextCustom',
   },
   buttonText: {
     prevCustom: '<',
     todayCustom: '오늘',
-    nextCustom: '>'
+    nextCustom: '>',
   },
   customButtons: {
     prevCustom: {
       text: '<',
-      click: clickPrev
+      click: clickPrev,
     },
     todayCustom: {
       text: '오늘',
-      click: clickToday
+      click: clickToday,
     },
     nextCustom: {
       text: '>',
-      click: clickNext
-    }
+      click: clickNext,
+    },
   },
   dateClick: handleDateClick,
   datesSet: handleDatesSet,
-  events: normalizedEvents.value
-}))
+  events: normalizedEvents.value,
+}));
 </script>
 
 <template>
