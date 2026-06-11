@@ -17,9 +17,27 @@ const props = defineProps({
     type: Function,
     default: undefined,
   },
+  headerBackgroundColor: {
+    type: String,
+    default: '#f4f5f6',
+  },
+  headerTextColor: {
+    type: String,
+    default: '#131416',
+  },
+  headerBorderColor: {
+    type: String,
+    default: '#e5e7eb',
+  },
 });
 
 const calendarRef = ref(undefined);
+
+const calendarCssVars = computed(() => ({
+  '--calendar-header-background-color': props.headerBackgroundColor,
+  '--calendar-header-text-color': props.headerTextColor,
+  '--calendar-header-border-color': props.headerBorderColor,
+}));
 
 const compactDate = (value) => {
   if (!value) return value;
@@ -134,6 +152,7 @@ const calendarOptions = computed(() => ({
       click: clickNext,
     },
   },
+  height: '100%',
   dateClick: handleDateClick,
   datesSet: handleDatesSet,
   events: normalizedEvents.value,
@@ -141,10 +160,17 @@ const calendarOptions = computed(() => ({
 </script>
 
 <template>
-  <FullCalendar ref="calendarRef" :options="calendarOptions" />
+  <div class="base-full-calendar" :style="calendarCssVars">
+    <FullCalendar ref="calendarRef" :options="calendarOptions" />
+  </div>
 </template>
 
 <style>
+.base-full-calendar {
+  height: 100%;
+  width: 100%;
+}
+
 .fc-daygrid-event {
   pointer-events: none;
 }
@@ -170,6 +196,8 @@ const calendarOptions = computed(() => ({
 
 .fc .fc-toolbar .fc-button-group {
   gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
 .fc .fc-header-toolbar {
@@ -187,7 +215,9 @@ const calendarOptions = computed(() => ({
 .fc .fc-toolbar.fc-header-toolbar .fc-toolbar-chunk {
   display: flex;
   justify-content: center;
-  width: 100%;
+  width: auto;
+  max-width: 100%;
+  flex-wrap: wrap;
 }
 
 .fc .fc-toolbar.fc-header-toolbar .fc-toolbar-chunk:nth-child(1) {
@@ -204,6 +234,20 @@ const calendarOptions = computed(() => ({
 
 .fc .fc-daygrid-day.fc-day-today {
   background-color: transparent !important;
+}
+
+.fc .fc-col-header-cell {
+  background-color: var(--calendar-header-background-color) !important;
+  border-color: var(--calendar-header-border-color) !important;
+}
+
+.fc .fc-col-header-cell-cushion {
+  color: var(--calendar-header-text-color) !important;
+  font-weight: 600;
+}
+
+.fc .fc-col-header {
+  border-color: var(--calendar-header-border-color) !important;
 }
 
 .fc .fc-daygrid-day-number {

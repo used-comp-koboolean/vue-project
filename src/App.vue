@@ -23,13 +23,14 @@
 .app-layout {
   display: grid;
   grid-template-columns: 220px 1fr;
-  min-height: 100vh;
+  height: 100vh;
 }
 
 .sidebar {
   border-right: 1px solid #d5dbe7;
   background: #f8fafc;
   padding: 18px 14px;
+  overflow: auto;
 }
 
 .sidebar h2 {
@@ -64,6 +65,8 @@
 
 .content {
   padding: 18px;
+  min-height: 0;
+  overflow: auto;
 }
 
 @media (max-width: 900px) {
@@ -72,8 +75,7 @@
   }
 
   .sidebar {
-    border-right: 0;
-    border-bottom: 1px solid #d5dbe7;
+    display: none;
   }
 }
 </style>

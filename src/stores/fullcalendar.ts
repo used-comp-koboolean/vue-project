@@ -6,7 +6,7 @@ const CAL_TYPE_COLOR = {
   TYPE1: {
     backgroundColor: '#1e88e59f',
     borderColor: '#1e88e59f',
-    textColor: '#ffffff',
+    textColor: '#000000',
   },
   TYPE2: {
     backgroundColor: '#43a0479f',
