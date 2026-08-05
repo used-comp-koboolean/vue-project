@@ -93,6 +93,18 @@ const handleDatesSet = (arg) => {
   props.onMonthChange(compactMonth(arg?.view?.currentStart), arg);
 };
 
+const renderEventContent = (arg) => {
+  const title = document.createElement('div');
+  title.className = 'fc-event-title';
+  title.textContent = arg.event.title || '';
+
+  if (!arg.isStart) {
+    title.classList.add('fc-event-title-placeholder');
+  }
+
+  return { domNodes: [title] };
+};
+
 const emitCurrentMonth = () => {
   if (typeof props.onMonthChange !== 'function') return;
   const api = calendarRef.value?.getApi?.();
@@ -155,6 +167,7 @@ const calendarOptions = computed(() => ({
   height: '100%',
   dateClick: handleDateClick,
   datesSet: handleDatesSet,
+  eventContent: renderEventContent,
   events: normalizedEvents.value,
 }));
 </script>
@@ -173,6 +186,21 @@ const calendarOptions = computed(() => ({
 
 .fc-daygrid-event {
   pointer-events: none;
+}
+
+.fc .fc-event-title {
+  font-weight: 700;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.3;
+}
+
+.fc .fc-daygrid-block-event .fc-event-main {
+  padding: 2px 4px;
+}
+
+.fc .fc-event-title-placeholder {
+  visibility: hidden;
 }
 
 .fc .fc-prevCustom-button,
