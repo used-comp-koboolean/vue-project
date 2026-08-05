@@ -268,6 +268,11 @@ const calendarOptions = computed(() => ({
   font-weight: 600;
 }
 
+.fc .fc-day-sat,
+.fc .fc-day-sun {
+  background-color: #f5f5f5;
+}
+
 @media (max-width: 640px) {
   .fc .fc-toolbar-title {
     font-size: 20px;
