@@ -13,6 +13,8 @@ const handleDateClick = (compactDate) => {
 const handleMonthChange = (month) => {
   fullCalendarStore.loadEventsByMonth(month);
 };
+
+const showEventHoverCursor = () => true;
 </script>
 
 <template>
@@ -21,6 +23,7 @@ const handleMonthChange = (month) => {
       :date-events="currentEvents"
       :on-date-click="handleDateClick"
       :on-month-change="handleMonthChange"
+      :event-hover-cursor-predicate="showEventHoverCursor"
     />
   </section>
 </template>

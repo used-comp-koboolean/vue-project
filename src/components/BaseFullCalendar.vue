@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, ref } from 'vue';
 import FullCalendar from '@fullcalendar/vue3';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
@@ -32,8 +32,6 @@ const props = defineProps({
 });
 
 const calendarRef = ref(undefined);
-const pendingEventLayouts = new Set();
-let layoutFrame = 0;
 
 const calendarCssVars = computed(() => ({
   '--calendar-header-background-color': props.headerBackgroundColor,
@@ -95,133 +93,17 @@ const handleDatesSet = (arg) => {
   props.onMonthChange(compactMonth(arg?.view?.currentStart), arg);
 };
 
-const buildEventKey = (event) => {
-  const id = event.id || event._def?.publicId || event._def?.defId || '';
-  const start = event.startStr || event.start?.toISOString?.() || '';
-  const end = event.endStr || event.end?.toISOString?.() || '';
-  return `${id}__${event.title || ''}__${start}__${end}`;
-};
-
-const sortEventSegments = (elements) =>
-  [...elements].sort((left, right) => {
-    const leftRect = left.getBoundingClientRect();
-    const rightRect = right.getBoundingClientRect();
-
-    if (Math.abs(leftRect.top - rightRect.top) > 1) {
-      return leftRect.top - rightRect.top;
-    }
-
-    return leftRect.left - rightRect.left;
-  });
-
-const measureTextWidth = (text, font) => {
-  if (!text) return 0;
-
-  const canvas = measureTextWidth.canvas || document.createElement('canvas');
-  const context = canvas.getContext('2d');
-  measureTextWidth.canvas = canvas;
-  if (!context) return 0;
-  context.font = font;
-  return context.measureText(text).width;
-};
-
-const layoutEventTitleSegments = (eventKey) => {
-  const root = calendarRef.value?.$el;
-  if (!root) return;
-
-  const segments = sortEventSegments(root.querySelectorAll(`[data-event-key="${CSS.escape(eventKey)}"]`));
-  if (!segments.length) return;
-
-  const titleText = segments[0].dataset.eventTitle || '';
-  let bestSegment = null;
-  let bestWidth = 0;
-
-  segments.forEach((segment) => {
-    const title = segment.querySelector('.fc-event-title');
-    if (!title) return;
-
-    delete segment.dataset.titleFits;
-    title.textContent = titleText || '\u00a0';
-    title.classList.add('fc-event-title-placeholder');
-
-    if (!titleText) return;
-
-    const style = window.getComputedStyle(title);
-    const font = `${style.fontStyle} ${style.fontVariant} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-    const availableWidth = Math.max(title.clientWidth, title.parentElement?.clientWidth || 0);
-    const textWidth = measureTextWidth(titleText, font);
-
-    if (availableWidth > bestWidth) {
-      bestWidth = availableWidth;
-      bestSegment = segment;
-    }
-
-    if (!segment.dataset.titleFits && textWidth <= availableWidth) {
-      segment.dataset.titleFits = 'true';
-    }
-  });
-
-  const targetSegment = segments.find((segment) => segment.dataset.titleFits === 'true') || bestSegment;
-  if (!targetSegment) return;
-
-  const visibleTitle = targetSegment.querySelector('.fc-event-title');
-  if (!visibleTitle) return;
-
-  visibleTitle.textContent = titleText || '\u00a0';
-  visibleTitle.classList.remove('fc-event-title-placeholder');
-};
-
-const queueEventLayout = (eventKey) => {
-  pendingEventLayouts.add(eventKey);
-
-  if (layoutFrame) return;
-
-  layoutFrame = window.requestAnimationFrame(() => {
-    pendingEventLayouts.forEach(layoutEventTitleSegments);
-    pendingEventLayouts.clear();
-    layoutFrame = 0;
-  });
-};
-
-const relayoutAllEventTitles = () => {
-  const root = calendarRef.value?.$el;
-  if (!root) return;
-
-  const eventKeys = new Set(
-    [...root.querySelectorAll('[data-event-key]')]
-      .map((element) => element.dataset.eventKey)
-      .filter(Boolean),
-  );
-
-  eventKeys.forEach(queueEventLayout);
-};
-
 const renderEventContent = (arg) => {
   const title = document.createElement('div');
   title.className = 'fc-event-title';
   title.textContent = arg.event.title || '';
 
+  if (!arg.isStart) {
+    title.classList.add('fc-event-title-placeholder');
+  }
+
   return { domNodes: [title] };
 };
-
-const handleEventDidMount = (arg) => {
-  const eventKey = buildEventKey(arg.event);
-  arg.el.dataset.eventKey = eventKey;
-  arg.el.dataset.eventTitle = arg.event.title || '';
-  queueEventLayout(eventKey);
-};
-
-onMounted(() => {
-  window.addEventListener('resize', relayoutAllEventTitles);
-});
-
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', relayoutAllEventTitles);
-
-  if (layoutFrame) {
-    window.cancelAnimationFrame(layoutFrame);
-  }
-});
 
 const emitCurrentMonth = () => {
   if (typeof props.onMonthChange !== 'function') return;
@@ -286,7 +168,6 @@ const calendarOptions = computed(() => ({
   dateClick: handleDateClick,
   datesSet: handleDatesSet,
   eventContent: renderEventContent,
-  eventDidMount: handleEventDidMount,
   events: normalizedEvents.value,
 }));
 </script>
@@ -309,9 +190,8 @@ const calendarOptions = computed(() => ({
 
 .fc .fc-event-title {
   font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
   line-height: 1.3;
 }
 
