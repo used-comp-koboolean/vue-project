@@ -17,6 +17,10 @@ const props = defineProps({
     type: Function,
     default: undefined,
   },
+  eventHoverCursorPredicate: {
+    type: Function,
+    default: undefined,
+  },
   headerBackgroundColor: {
     type: String,
     default: '#f4f5f6',
@@ -75,10 +79,17 @@ const normalizeEvent = (event) => {
 
 const normalizedEvents = computed(() => props.dateEvents.map(normalizeEvent));
 
-const handleDateClick = (arg) => {
-  if (typeof props.onDateClick === 'function') {
-    props.onDateClick(compactDate(arg.dateStr), arg);
+const emitDateClick = (dateStr, arg) => {
+  if (typeof props.onDateClick !== 'function' || !dateStr) return;
+  props.onDateClick(compactDate(dateStr), arg);
+};
+
+const handleEventClick = (arg) => {
+  if (typeof props.eventHoverCursorPredicate === 'function' && !props.eventHoverCursorPredicate(arg.event, arg)) {
+    return;
   }
+
+  emitDateClick(arg.event.startStr || arg.event.start?.toISOString?.().slice(0, 10), arg);
 };
 
 const compactMonth = (date) => {
@@ -91,6 +102,11 @@ const compactMonth = (date) => {
 const handleDatesSet = (arg) => {
   if (typeof props.onMonthChange !== 'function') return;
   props.onMonthChange(compactMonth(arg?.view?.currentStart), arg);
+};
+
+const eventClassNames = (arg) => {
+  if (typeof props.eventHoverCursorPredicate !== 'function') return [];
+  return props.eventHoverCursorPredicate(arg.event, arg) ? ['fc-hover-clickable-event'] : [];
 };
 
 const renderEventContent = (arg) => {
@@ -165,8 +181,9 @@ const calendarOptions = computed(() => ({
     },
   },
   height: '100%',
-  dateClick: handleDateClick,
   datesSet: handleDatesSet,
+  eventClassNames,
+  eventClick: handleEventClick,
   eventContent: renderEventContent,
   events: normalizedEvents.value,
 }));
@@ -186,6 +203,14 @@ const calendarOptions = computed(() => ({
 
 .fc-daygrid-event {
   pointer-events: none;
+}
+
+.fc-daygrid-event.fc-hover-clickable-event {
+  pointer-events: auto;
+}
+
+.fc .fc-hover-clickable-event:hover {
+  cursor: pointer;
 }
 
 .fc .fc-event-title {
