@@ -11,6 +11,13 @@
       <nav>
         <RouterLink to="/full-calender" class="nav-link">Full Calender 화면</RouterLink>
       </nav>
+      <h2>Chart</h2>
+      <nav>
+        <RouterLink to="/chart/bar" class="nav-link">막대 차트 화면</RouterLink>
+        <RouterLink to="/chart/line" class="nav-link">라인 차트 화면</RouterLink>
+        <RouterLink to="/chart/pie" class="nav-link">원형 차트 화면</RouterLink>
+        <RouterLink to="/chart/distribution" class="nav-link">분포 · 비교 차트 화면</RouterLink>
+      </nav>
     </aside>
 
     <main class="content">
